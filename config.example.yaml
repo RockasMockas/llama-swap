@@ -23,11 +23,17 @@ models:
     # unload model after 5 seconds
     ttl: 5
 
+    # prefix to add to the beginning of the latest user message in chat completions
+    # useful for system prompting or instruction tuning
+    message_prefix: "Answer the following query: "
+
   "qwen":
     cmd: models/llama-server-osx --port 9002 -m models/qwen2.5-0.5b-instruct-q8_0.gguf
     proxy: http://127.0.0.1:9002
     aliases:
     - gpt-3.5-turbo
+    # example of a different prefix for this model
+    message_prefix: "You are a helpful assistant. "
 
   # Embedding example with Nomic
   # https://huggingface.co/nomic-ai/nomic-embed-text-v1.5-GGUF

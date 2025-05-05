@@ -104,6 +104,10 @@ models:
     # `useModelName` overrides the model name in the request
     # and sends a specific name to the upstream server
     useModelName: "qwen:qwq"
+    
+    # `message_prefix` adds text to the beginning of the last user message
+    # in chat completion requests. Useful for instruction tuning or system prompts.
+    message_prefix: "Answer the following query: "
 
   # unlisted models do not show up in /v1/models or /upstream lists
   # but they can still be requested as normal

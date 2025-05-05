@@ -21,6 +21,7 @@ type ModelConfig struct {
 	UnloadAfter   int      `yaml:"ttl"`
 	Unlisted      bool     `yaml:"unlisted"`
 	UseModelName  string   `yaml:"useModelName"`
+	MessagePrefix string   `yaml:"message_prefix"`
 }
 
 func (m *ModelConfig) SanitizedCommand() ([]string, error) {

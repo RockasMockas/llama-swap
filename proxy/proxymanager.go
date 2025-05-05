@@ -364,6 +364,82 @@ func (pm *ProxyManager) proxyOAIHandler(c *gin.Context) {
 		}
 	}
 
+	// Check if this model has a message_prefix configuration
+	messagePrefix := pm.config.Models[realModelName].MessagePrefix
+	if messagePrefix != "" {
+		// Only modify if it's a chat/completions request that has messages
+		if strings.Contains(c.Request.URL.Path, "/chat/completions") && gjson.GetBytes(bodyBytes, "messages").Exists() {
+			// Get all messages
+			messages := gjson.GetBytes(bodyBytes, "messages").Array()
+			
+			// If there are messages, find the last user message
+			if len(messages) > 0 {
+				lastUserMsgIndex := -1
+				for i := len(messages) - 1; i >= 0; i-- {
+					if messages[i].Get("role").String() == "user" {
+						lastUserMsgIndex = i
+						break
+					}
+				}
+				
+				// If found a user message, modify its content
+				if lastUserMsgIndex >= 0 {
+					messagePath := fmt.Sprintf("messages.%d.content", lastUserMsgIndex)
+					
+					// Check if content is a string or array
+					contentResult := gjson.GetBytes(bodyBytes, messagePath)
+					var newContent string
+					
+					if contentResult.IsArray() {
+						// Handle content arrays (for messages with text and images)
+						contentArray := contentResult.Array()
+						textContentIndex := -1
+						
+						// Find the first text content
+						for i, item := range contentArray {
+							if item.Get("type").String() == "text" {
+								textContentIndex = i
+								break
+							}
+						}
+						
+						if textContentIndex >= 0 {
+							// Modify the text content within the array
+							textPath := fmt.Sprintf("%s.%d.text", messagePath, textContentIndex)
+							textContent := gjson.GetBytes(bodyBytes, textPath).String()
+							newTextContent := messagePrefix + textContent
+							
+							var setErr error
+							bodyBytes, setErr = sjson.SetBytes(bodyBytes, textPath, newTextContent)
+							if setErr != nil {
+								pm.sendErrorResponse(c, http.StatusInternalServerError, 
+									fmt.Sprintf("error adding message prefix to text in content array: %s", setErr.Error()))
+								return
+							}
+							pm.proxyLogger.Debugf("Added message prefix '%s' to content array in request for model %s", 
+								messagePrefix, realModelName)
+						}
+					} else if contentResult.Type == gjson.String {
+						// Handle simple string content
+						userContent := contentResult.String()
+						newContent = messagePrefix + userContent
+						
+						// Update the body with the prefixed message
+						var setErr error
+						bodyBytes, setErr = sjson.SetBytes(bodyBytes, messagePath, newContent)
+						if setErr != nil {
+							pm.sendErrorResponse(c, http.StatusInternalServerError, 
+								fmt.Sprintf("error adding message prefix: %s", setErr.Error()))
+							return
+						}
+						pm.proxyLogger.Debugf("Added message prefix '%s' to request for model %s", 
+							messagePrefix, realModelName)
+					}
+				}
+			}
+		}
+	}
+
 	c.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 
 	// dechunk it as we already have all the body bytes see issue #11
