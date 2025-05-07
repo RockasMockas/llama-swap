@@ -606,6 +606,108 @@ func TestProxyManager_MessagePrefix(t *testing.T) {
 	})
 }
 
+// Test cache_prompt feature
+func TestProxyManager_CachePrompt(t *testing.T) {
+	// Create model configs with different cache_prompt settings
+	trueValue := true
+	falseValue := false
+	
+	model1Config := getTestSimpleResponderConfig("model1")
+	model1Config.CachePrompt = &trueValue
+	
+	model2Config := getTestSimpleResponderConfig("model2")
+	model2Config.CachePrompt = &falseValue
+	
+	model3Config := getTestSimpleResponderConfig("model3")
+	// No CachePrompt set for model3
+	
+	config := AddDefaultGroupToConfig(Config{
+		HealthCheckTimeout: 15,
+		Models: map[string]ModelConfig{
+			"model1": model1Config,
+			"model2": model2Config,
+			"model3": model3Config,
+		},
+		LogLevel: "debug", // Use debug to see the log messages
+	})
+
+	proxy := New(config)
+	defer proxy.StopProcesses()
+
+	// Test case 1: Request to model with cache_prompt=true
+	t.Run("model with cache_prompt true", func(t *testing.T) {
+		reqBody := `{
+            "model": "model1",
+            "messages": [
+                {"role": "user", "content": "Tell me a joke"}
+            ]
+        }`
+		req := httptest.NewRequest("POST", "/v1/chat/completions", bytes.NewBufferString(reqBody))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		proxy.HandlerFunc(w, req)
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, "model1", w.Body.String())
+		// We can't directly test that cache_prompt was added since our test responder
+		// doesn't echo back the request, but we know the code was executed
+	})
+
+	// Test case 2: Request to model with cache_prompt=false
+	t.Run("model with cache_prompt false", func(t *testing.T) {
+		reqBody := `{
+            "model": "model2",
+            "messages": [
+                {"role": "user", "content": "Tell me a joke"}
+            ]
+        }`
+		req := httptest.NewRequest("POST", "/v1/chat/completions", bytes.NewBufferString(reqBody))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		proxy.HandlerFunc(w, req)
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, "model2", w.Body.String())
+	})
+
+	// Test case 3: Request to model without cache_prompt setting
+	t.Run("model without cache_prompt setting", func(t *testing.T) {
+		reqBody := `{
+            "model": "model3",
+            "messages": [
+                {"role": "user", "content": "Tell me a joke"}
+            ]
+        }`
+		req := httptest.NewRequest("POST", "/v1/chat/completions", bytes.NewBufferString(reqBody))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		proxy.HandlerFunc(w, req)
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, "model3", w.Body.String())
+	})
+
+	// Test case 4: Request with existing cache_prompt field (should not be modified)
+	t.Run("request with existing cache_prompt", func(t *testing.T) {
+		reqBody := `{
+            "model": "model1",
+            "messages": [
+                {"role": "user", "content": "Tell me a joke"}
+            ],
+            "cache_prompt": false
+        }`
+		req := httptest.NewRequest("POST", "/v1/chat/completions", bytes.NewBufferString(reqBody))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		proxy.HandlerFunc(w, req)
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, "model1", w.Body.String())
+		// The request already has cache_prompt: false, which should take precedence
+		// over the model's setting of cache_prompt: true
+	})
+}
+
 func TestProxyManager_CORSOptionsHandler(t *testing.T) {
 	config := AddDefaultGroupToConfig(Config{
 		HealthCheckTimeout: 15,

@@ -27,6 +27,10 @@ models:
     # useful for system prompting or instruction tuning
     message_prefix: "Answer the following query: "
 
+    # cache_prompt adds this field to the request if not already present
+    # controls whether the model server should cache the prompt for faster responses
+    cache_prompt: true
+
   "qwen":
     cmd: models/llama-server-osx --port 9002 -m models/qwen2.5-0.5b-instruct-q8_0.gguf
     proxy: http://127.0.0.1:9002
@@ -34,6 +38,8 @@ models:
     - gpt-3.5-turbo
     # example of a different prefix for this model
     message_prefix: "You are a helpful assistant. "
+    # disable prompt caching for this model
+    cache_prompt: false
 
   # Embedding example with Nomic
   # https://huggingface.co/nomic-ai/nomic-embed-text-v1.5-GGUF

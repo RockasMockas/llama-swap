@@ -108,6 +108,10 @@ models:
     # `message_prefix` adds text to the beginning of the last user message
     # in chat completion requests. Useful for instruction tuning or system prompts.
     message_prefix: "Answer the following query: "
+    
+    # `cache_prompt` adds the cache_prompt field to requests if not present
+    # useful for controlling whether the server should cache the prompt
+    cache_prompt: true
 
   # unlisted models do not show up in /v1/models or /upstream lists
   # but they can still be requested as normal

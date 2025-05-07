@@ -440,6 +440,21 @@ func (pm *ProxyManager) proxyOAIHandler(c *gin.Context) {
 		}
 	}
 
+	// Check if this model has a cache_prompt configuration and the field is not already in the request
+	if pm.config.Models[realModelName].CachePrompt != nil && !gjson.GetBytes(bodyBytes, "cache_prompt").Exists() {
+		// Add the cache_prompt field with the configured value
+		cachePromptValue := *pm.config.Models[realModelName].CachePrompt
+		var err error
+		bodyBytes, err = sjson.SetBytes(bodyBytes, "cache_prompt", cachePromptValue)
+		if err != nil {
+			pm.sendErrorResponse(c, http.StatusInternalServerError, 
+				fmt.Sprintf("error adding cache_prompt: %s", err.Error()))
+			return
+		}
+		pm.proxyLogger.Debugf("Added cache_prompt: %v to request for model %s", 
+			cachePromptValue, realModelName)
+	}
+
 	c.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 
 	// dechunk it as we already have all the body bytes see issue #11

@@ -22,6 +22,7 @@ type ModelConfig struct {
 	Unlisted      bool     `yaml:"unlisted"`
 	UseModelName  string   `yaml:"useModelName"`
 	MessagePrefix string   `yaml:"message_prefix"`
+	CachePrompt   *bool    `yaml:"cache_prompt"` // Use pointer to differentiate between unset and false
 }
 
 func (m *ModelConfig) SanitizedCommand() ([]string, error) {
